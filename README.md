@@ -4,11 +4,6 @@
 
 ---
 
-## 📂 Repository
-
-GitHub: [https://github.com/Kevin-gram/SafeCell](https://github.com/Kevin-gram/SafeCell)
-
----
 
 ## 🚀 Features
 
