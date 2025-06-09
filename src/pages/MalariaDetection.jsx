@@ -132,21 +132,55 @@ export default function MalariaDetection() {
     visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }
   }
 
-  // Sample placeholder images for the detection demo
-  const placeholderImages = [
-    "https://images.pexels.com/photos/4226119/pexels-photo-4226119.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    "https://images.pexels.com/photos/4226264/pexels-photo-4226264.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    "https://images.pexels.com/photos/356040/pexels-photo-356040.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+  // Blood cell and microscopy images for the detection demo
+  const bloodCellImages = [
+    {
+      url: "https://images.pexels.com/photos/3786157/pexels-photo-3786157.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 1",
+      description: "Red blood cells under microscope"
+    },
+    {
+      url: "https://images.pexels.com/photos/3825527/pexels-photo-3825527.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 2", 
+      description: "Microscopic blood analysis"
+    },
+    {
+      url: "https://images.pexels.com/photos/3825539/pexels-photo-3825539.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 3",
+      description: "Laboratory blood examination"
+    },
+    {
+      url: "https://images.pexels.com/photos/3825546/pexels-photo-3825546.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 4",
+      description: "Medical microscopy sample"
+    },
+    {
+      url: "https://images.pexels.com/photos/4033148/pexels-photo-4033148.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 5",
+      description: "Clinical blood analysis"
+    },
+    {
+      url: "https://images.pexels.com/photos/4226119/pexels-photo-4226119.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 6",
+      description: "Hematology examination"
+    }
   ]
 
-  const handleSampleSelect = (img, index) => {
+  const handleSampleSelect = (sample, index) => {
     logInteraction('click', 'sample-image', {
       sampleIndex: index,
-      imageUrl: img
+      imageUrl: sample.url,
+      sampleTitle: sample.title
     })
     
-    setPreviewUrl(img)
-    setSelectedImage({type: 'image/jpeg', size: 1000000, name: `sample-${index + 1}.jpg`}) // mock file object
+    setPreviewUrl(sample.url)
+    setSelectedImage({
+      type: 'image/jpeg', 
+      size: 1000000, 
+      name: `blood-smear-sample-${index + 1}.jpg`
+    }) // mock file object
+    setResult(null)
+    setError(null)
   }
 
   return (
@@ -239,6 +273,18 @@ export default function MalariaDetection() {
               <li>{t('detection.step2')}</li>
               <li>{t('detection.step3')}</li>
             </ol>
+            
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Note:</strong> For best results, ensure blood smear images are:
+              </p>
+              <ul className="text-sm text-blue-700 dark:text-blue-300 mt-2 list-disc pl-4">
+                <li>High resolution and well-focused</li>
+                <li>Properly stained (Giemsa or similar)</li>
+                <li>Free from artifacts or debris</li>
+                <li>Captured under appropriate magnification</li>
+              </ul>
+            </div>
           </Card>
         </motion.div>
         
@@ -281,6 +327,11 @@ export default function MalariaDetection() {
                           }
                         </h3>
                       </div>
+                      {result.result === 'detected' && (
+                        <p className="mt-2 text-sm text-error-700 dark:text-error-300">
+                          Malaria parasites detected in blood smear. Immediate medical attention recommended.
+                        </p>
+                      )}
                     </div>
                     
                     <div className="mt-4">
@@ -321,32 +372,55 @@ export default function MalariaDetection() {
               </div>
             </Card>
           ) : (
-            // Sample images
+            // Sample blood smear images
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4">Sample Blood Smear Images</h2>
-              <p className="mb-4 text-gray-600 dark:text-gray-400">
-                Upload a blood smear image or select one of these samples to test the malaria detection system.
+              <p className="mb-6 text-gray-600 dark:text-gray-400">
+                Upload your own blood smear image or select one of these sample microscopy images to test the malaria detection system. These samples represent typical blood smears used in malaria diagnosis.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {placeholderImages.map((img, index) => (
+                {bloodCellImages.map((sample, index) => (
                   <div 
                     key={index}
-                    className="aspect-square relative rounded-lg overflow-hidden cursor-pointer group"
-                    onClick={() => handleSampleSelect(img, index)}
+                    className="relative rounded-lg overflow-hidden cursor-pointer group bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-300"
+                    onClick={() => handleSampleSelect(sample, index)}
                   >
-                    <img 
-                      src={img}
-                      alt={`Sample ${index + 1}`}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Button variant="primary">Select Sample</Button>
+                    <div className="aspect-square relative">
+                      <img 
+                        src={sample.url}
+                        alt={sample.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <Button variant="primary" size="sm">
+                            Select Sample
+                          </Button>
+                        </div>
                       </div>
+                    </div>
+                    <div className="p-3">
+                      <h3 className="font-medium text-sm">{sample.title}</h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        {sample.description}
+                      </p>
                     </div>
                   </div>
                 ))}
+              </div>
+              
+              <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start">
+                  <FiInfo className="text-amber-600 dark:text-amber-400 mt-0.5 mr-2 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-amber-800 dark:text-amber-200">Sample Images Disclaimer</h4>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      These are representative microscopy images for demonstration purposes. In a real clinical setting, 
+                      actual blood smear slides would be prepared and examined under proper laboratory conditions.
+                    </p>
+                  </div>
+                </div>
               </div>
             </Card>
           )}
