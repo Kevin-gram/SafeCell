@@ -2,8 +2,6 @@
 
 **SafeCell** is an AI-powered dashboard designed to assist healthcare workers — especially in rural and underserved communities — in the early and accurate detection of malaria using blood smear images. The system also helps visualize regional malaria trends and collect real-time user feedback, enabling data-driven public health responses.
 
-> 🔗 **GitHub Repository**: [https://github.com/Kevin-gram/SafeCell](https://github.com/Kevin-gram/SafeCell)
-
 ---
 
 ## 📸 App Interface Previews
