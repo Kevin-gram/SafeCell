@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useI18n } from '../contexts/I18nContext'
+import { useLogger } from '../hooks/useLogger'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -12,6 +13,7 @@ import { FiSend, FiRefreshCw } from 'react-icons/fi'
 
 export default function Feedback() {
   const { t } = useI18n()
+  const { logFeedback, logInteraction, logError } = useLogger()
   
   const [formData, setFormData] = useState({
     name: '',
@@ -64,10 +66,24 @@ export default function Feedback() {
     setIsSubmitting(true)
     setErrorMessage('')
     
+    logInteraction('submit', 'feedback-form', {
+      feedbackType: formData.type,
+      hasName: !!formData.name,
+      hasEmail: !!formData.email,
+      messageLength: formData.message.length
+    })
+    
     try {
       await apiRequest('/api/feedback', {
         method: 'POST',
         body: formData
+      })
+      
+      // Log successful feedback submission
+      logFeedback(formData.type, {
+        hasName: !!formData.name,
+        hasEmail: !!formData.email,
+        messageLength: formData.message.length
       })
       
       setSubmitted(true)
@@ -79,7 +95,14 @@ export default function Feedback() {
         message: ''
       })
     } catch (error) {
-      setErrorMessage(error.message || 'Failed to submit feedback')
+      const errorMsg = error.message || 'Failed to submit feedback'
+      setErrorMessage(errorMsg)
+      
+      // Log feedback submission error
+      logError(error, 'Feedback submission', {
+        feedbackType: formData.type,
+        messageLength: formData.message.length
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -99,6 +122,7 @@ export default function Feedback() {
   }
   
   const resetForm = () => {
+    logInteraction('click', 'submit-another-feedback-button')
     setSubmitted(false)
   }
 

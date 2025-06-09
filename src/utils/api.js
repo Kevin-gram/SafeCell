@@ -1,33 +1,75 @@
-// Simulated API service
+// Simulated API service with logging
+
+import logger from './logger'
 
 /**
- * Makes a simulated API request
+ * Makes a simulated API request with logging
  * @param {string} endpoint - API endpoint
  * @param {object} options - Request options
  * @returns {Promise<any>} Response data
  */
 export const apiRequest = async (endpoint, options = {}) => {
-  // Simulate network delay
-  const delay = Math.random() * 500 + 500; // Random delay between 500-1000ms
-  await new Promise(resolve => setTimeout(resolve, delay));
+  const startTime = Date.now()
+  const method = options.method || 'GET'
   
-  // Simulate 5% chance of API error
-  if (Math.random() < 0.05) {
-    throw new Error('API request failed');
-  }
+  // Log API request start
+  logger.logApiRequest(endpoint, method, 0, 'pending', {
+    requestData: options.body,
+    params: options.params
+  })
   
-  // Return mock response based on endpoint
-  switch (endpoint) {
-    case '/api/login':
-      return mockLogin(options.body);
-    case '/api/detection':
-      return mockDetection(options.body);
-    case '/api/statistics':
-      return mockStatistics(options.params);
-    case '/api/feedback':
-      return mockFeedback(options.body);
-    default:
-      throw new Error('Unknown endpoint');
+  try {
+    // Simulate network delay
+    const delay = Math.random() * 500 + 500; // Random delay between 500-1000ms
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    // Simulate 5% chance of API error
+    if (Math.random() < 0.05) {
+      throw new Error('API request failed');
+    }
+    
+    let response
+    
+    // Return mock response based on endpoint
+    switch (endpoint) {
+      case '/api/login':
+        response = mockLogin(options.body);
+        break
+      case '/api/detection':
+        response = mockDetection(options.body);
+        break
+      case '/api/statistics':
+        response = mockStatistics(options.params);
+        break
+      case '/api/feedback':
+        response = mockFeedback(options.body);
+        break
+      default:
+        throw new Error('Unknown endpoint');
+    }
+    
+    const duration = Date.now() - startTime
+    
+    // Log successful API request
+    logger.logApiRequest(endpoint, method, duration, 'success', {
+      responseData: response,
+      requestData: options.body,
+      params: options.params
+    })
+    
+    return response
+    
+  } catch (error) {
+    const duration = Date.now() - startTime
+    
+    // Log failed API request
+    logger.logApiRequest(endpoint, method, duration, 'error', {
+      error: error.message,
+      requestData: options.body,
+      params: options.params
+    })
+    
+    throw error
   }
 };
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useI18n } from '../contexts/I18nContext'
+import { useLogger } from '../hooks/useLogger'
 import { FiUploadCloud, FiCheckCircle, FiXCircle, FiInfo, FiRefreshCw } from 'react-icons/fi'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -8,6 +9,7 @@ import { apiRequest } from '../utils/api'
 
 export default function MalariaDetection() {
   const { t } = useI18n()
+  const { logDetection, logInteraction, logError, logPerformance } = useLogger()
   
   const [selectedImage, setSelectedImage] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -20,6 +22,13 @@ export default function MalariaDetection() {
     const file = e.target.files[0]
     if (!file) return
     
+    // Log interaction
+    logInteraction('upload', 'image-file', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    })
+    
     // Reset states
     setResult(null)
     setError(null)
@@ -27,13 +36,23 @@ export default function MalariaDetection() {
     // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg']
     if (!validTypes.includes(file.type)) {
-      setError('Please select a valid image file (JPEG or PNG)')
+      const errorMsg = 'Please select a valid image file (JPEG or PNG)'
+      setError(errorMsg)
+      logError(new Error(errorMsg), 'Image validation', {
+        fileName: file.name,
+        fileType: file.type
+      })
       return
     }
     
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('File size exceeds 5MB limit')
+      const errorMsg = 'File size exceeds 5MB limit'
+      setError(errorMsg)
+      logError(new Error(errorMsg), 'Image validation', {
+        fileName: file.name,
+        fileSize: file.size
+      })
       return
     }
     
@@ -45,8 +64,14 @@ export default function MalariaDetection() {
   const handleAnalyze = async () => {
     if (!selectedImage) return
     
+    const startTime = Date.now()
     setIsAnalyzing(true)
     setError(null)
+    
+    logInteraction('click', 'analyze-button', {
+      fileName: selectedImage.name,
+      fileSize: selectedImage.size
+    })
     
     try {
       // Call mock API
@@ -55,9 +80,30 @@ export default function MalariaDetection() {
         body: { image: previewUrl }
       })
       
+      const processingTime = Date.now() - startTime
+      
+      // Log successful detection
+      logDetection(response, {
+        processingTime,
+        imageSize: selectedImage.size,
+        fileName: selectedImage.name
+      })
+      
+      // Log performance metric
+      logPerformance('detection_processing_time', processingTime, {
+        unit: 'ms',
+        imageSize: selectedImage.size
+      })
+      
       setResult(response)
     } catch (err) {
-      setError(err.message || 'An error occurred during analysis')
+      const errorMsg = err.message || 'An error occurred during analysis'
+      setError(errorMsg)
+      logError(err, 'Detection analysis', {
+        fileName: selectedImage.name,
+        fileSize: selectedImage.size,
+        processingTime: Date.now() - startTime
+      })
     } finally {
       setIsAnalyzing(false)
     }
@@ -65,6 +111,8 @@ export default function MalariaDetection() {
   
   // Reset the form
   const handleReset = () => {
+    logInteraction('click', 'reset-button')
+    
     setSelectedImage(null)
     setPreviewUrl(null)
     setResult(null)
@@ -90,6 +138,16 @@ export default function MalariaDetection() {
     "https://images.pexels.com/photos/4226264/pexels-photo-4226264.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     "https://images.pexels.com/photos/356040/pexels-photo-356040.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
   ]
+
+  const handleSampleSelect = (img, index) => {
+    logInteraction('click', 'sample-image', {
+      sampleIndex: index,
+      imageUrl: img
+    })
+    
+    setPreviewUrl(img)
+    setSelectedImage({type: 'image/jpeg', size: 1000000, name: `sample-${index + 1}.jpg`}) // mock file object
+  }
 
   return (
     <motion.div
@@ -118,7 +176,10 @@ export default function MalariaDetection() {
             {!previewUrl ? (
               <div 
                 className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 dark:hover:border-primary-400 transition-colors"
-                onClick={() => document.getElementById('image-upload').click()}
+                onClick={() => {
+                  logInteraction('click', 'upload-zone')
+                  document.getElementById('image-upload').click()
+                }}
               >
                 <FiUploadCloud size={48} className="mx-auto text-gray-400 dark:text-gray-500" />
                 <p className="mt-4 text-gray-600 dark:text-gray-400">{t('detection.dropzone')}</p>
@@ -246,7 +307,13 @@ export default function MalariaDetection() {
                     <Button variant="outline" icon={<FiRefreshCw />} onClick={handleReset}>
                       {t('detection.tryAgain')}
                     </Button>
-                    <Button variant="primary">
+                    <Button 
+                      variant="primary"
+                      onClick={() => logInteraction('click', 'view-details-button', {
+                        detectionId: result.id,
+                        result: result.result
+                      })}
+                    >
                       {t('detection.viewDetails')}
                     </Button>
                   </div>
@@ -266,10 +333,7 @@ export default function MalariaDetection() {
                   <div 
                     key={index}
                     className="aspect-square relative rounded-lg overflow-hidden cursor-pointer group"
-                    onClick={() => {
-                      setPreviewUrl(img)
-                      setSelectedImage({type: 'image/jpeg', size: 1000000}) // mock file object
-                    }}
+                    onClick={() => handleSampleSelect(img, index)}
                   >
                     <img 
                       src={img}

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import logger from '../utils/logger'
 
 const AuthContext = createContext(null)
 
@@ -11,8 +12,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const savedUser = localStorage.getItem('user')
     if (savedUser) {
-      setUser(JSON.parse(savedUser))
+      const userData = JSON.parse(savedUser)
+      setUser(userData)
       setIsAuthenticated(true)
+      
+      // Log session restoration
+      logger.logAuth('session_restored', {
+        userId: userData.id,
+        email: userData.email,
+        role: userData.role
+      })
     }
     setLoading(false)
   }, [])
@@ -43,8 +52,23 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true)
       localStorage.setItem('user', JSON.stringify(userData))
       
+      // Log successful login
+      logger.logAuth('login_success', {
+        userId: userData.id,
+        email: userData.email,
+        role: userData.role,
+        loginMethod: 'email_password'
+      })
+      
       return { success: true }
     } catch (error) {
+      // Log failed login
+      logger.logAuth('login_failed', {
+        email,
+        error: error.message,
+        loginMethod: 'email_password'
+      })
+      
       return { 
         success: false, 
         error: error.message || 'Login failed'
@@ -66,14 +90,32 @@ export const AuthProvider = ({ children }) => {
       setUser(updatedUser)
       localStorage.setItem('user', JSON.stringify(updatedUser))
       
+      // Log profile update
+      logger.logAuth('profile_updated', {
+        userId: user.id,
+        updatedFields: Object.keys(userData)
+      })
+      
       return { success: true }
     } catch (error) {
+      // Log failed profile update
+      logger.logAuth('profile_update_failed', {
+        userId: user?.id,
+        error: error.message
+      })
+      
       throw new Error('Failed to update profile')
     }
   }
   
   // Logout function
   const logout = () => {
+    // Log logout
+    logger.logAuth('logout', {
+      userId: user?.id,
+      sessionDuration: Date.now() - logger.startTime
+    })
+    
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('user')
