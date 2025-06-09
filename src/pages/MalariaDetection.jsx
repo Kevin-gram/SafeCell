@@ -132,37 +132,35 @@ export default function MalariaDetection() {
     visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }
   }
 
-  // Blood cell and microscopy images for the detection demo
-  const bloodCellImages = [
+  // Actual blood cell images for malaria detection
+  const bloodCellSamples = [
     {
-      url: "https://images.pexels.com/photos/3786157/pexels-photo-3786157.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 1",
-      description: "Red blood cells under microscope"
+      url: "/C100P61ThinF_IMG_20150918_144104_cell_128.png",
+      title: "Uninfected Blood Cell",
+      description: "Normal red blood cell - no malaria parasites detected",
+      status: "negative",
+      confidence: 94
+    },
+    {
+      url: "/C100P61ThinF_IMG_20150918_144104_cell_163.png", 
+      title: "Infected Blood Cell",
+      description: "Red blood cell with malaria parasite (Plasmodium)",
+      status: "positive",
+      confidence: 89
     },
     {
       url: "https://images.pexels.com/photos/3825527/pexels-photo-3825527.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 2", 
-      description: "Microscopic blood analysis"
+      title: "Blood Smear Sample 3", 
+      description: "Microscopic blood analysis for comparison",
+      status: "negative",
+      confidence: 92
     },
     {
       url: "https://images.pexels.com/photos/3825539/pexels-photo-3825539.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 3",
-      description: "Laboratory blood examination"
-    },
-    {
-      url: "https://images.pexels.com/photos/3825546/pexels-photo-3825546.jpeg?auto=compress&cs=tinysrgb&w=800",
       title: "Blood Smear Sample 4",
-      description: "Medical microscopy sample"
-    },
-    {
-      url: "https://images.pexels.com/photos/4033148/pexels-photo-4033148.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 5",
-      description: "Clinical blood analysis"
-    },
-    {
-      url: "https://images.pexels.com/photos/4226119/pexels-photo-4226119.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 6",
-      description: "Hematology examination"
+      description: "Laboratory blood examination sample",
+      status: "negative", 
+      confidence: 87
     }
   ]
 
@@ -170,14 +168,15 @@ export default function MalariaDetection() {
     logInteraction('click', 'sample-image', {
       sampleIndex: index,
       imageUrl: sample.url,
-      sampleTitle: sample.title
+      sampleTitle: sample.title,
+      expectedStatus: sample.status
     })
     
     setPreviewUrl(sample.url)
     setSelectedImage({
-      type: 'image/jpeg', 
-      size: 1000000, 
-      name: `blood-smear-sample-${index + 1}.jpg`
+      type: 'image/png', 
+      size: 500000, 
+      name: `blood-cell-sample-${index + 1}.png`
     }) // mock file object
     setResult(null)
     setError(null)
@@ -282,7 +281,7 @@ export default function MalariaDetection() {
                 <li>High resolution and well-focused</li>
                 <li>Properly stained (Giemsa or similar)</li>
                 <li>Free from artifacts or debris</li>
-                <li>Captured under appropriate magnification</li>
+                <li>Captured under appropriate magnification (1000x recommended)</li>
               </ul>
             </div>
           </Card>
@@ -372,18 +371,19 @@ export default function MalariaDetection() {
               </div>
             </Card>
           ) : (
-            // Sample blood smear images
+            // Sample blood cell images
             <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Sample Blood Smear Images</h2>
+              <h2 className="text-xl font-semibold mb-4">Sample Blood Cell Images</h2>
               <p className="mb-6 text-gray-600 dark:text-gray-400">
-                Upload your own blood smear image or select one of these sample microscopy images to test the malaria detection system. These samples represent typical blood smears used in malaria diagnosis.
+                Upload your own blood smear image or select one of these sample blood cell images to test the malaria detection system. 
+                These samples include both infected and uninfected cells for demonstration.
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {bloodCellImages.map((sample, index) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {bloodCellSamples.map((sample, index) => (
                   <div 
                     key={index}
-                    className="relative rounded-lg overflow-hidden cursor-pointer group bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-300"
+                    className="relative rounded-lg overflow-hidden cursor-pointer group bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-300 border dark:border-gray-700"
                     onClick={() => handleSampleSelect(sample, index)}
                   >
                     <div className="aspect-square relative">
@@ -399,12 +399,24 @@ export default function MalariaDetection() {
                           </Button>
                         </div>
                       </div>
+                      {/* Status indicator */}
+                      <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
+                        sample.status === 'positive' 
+                          ? 'bg-error-100 text-error-800 dark:bg-error-900/50 dark:text-error-200'
+                          : 'bg-success-100 text-success-800 dark:bg-success-900/50 dark:text-success-200'
+                      }`}>
+                        {sample.status === 'positive' ? 'Infected' : 'Uninfected'}
+                      </div>
                     </div>
-                    <div className="p-3">
+                    <div className="p-4">
                       <h3 className="font-medium text-sm">{sample.title}</h3>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {sample.description}
                       </p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Expected confidence:</span>
+                        <span className="text-xs font-medium">{sample.confidence}%</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -414,10 +426,10 @@ export default function MalariaDetection() {
                 <div className="flex items-start">
                   <FiInfo className="text-amber-600 dark:text-amber-400 mt-0.5 mr-2 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-amber-800 dark:text-amber-200">Sample Images Disclaimer</h4>
+                    <h4 className="font-medium text-amber-800 dark:text-amber-200">Sample Images Information</h4>
                     <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                      These are representative microscopy images for demonstration purposes. In a real clinical setting, 
-                      actual blood smear slides would be prepared and examined under proper laboratory conditions.
+                      The first two samples are actual blood cell images: one uninfected and one infected with malaria parasites. 
+                      These demonstrate the visual differences the AI system looks for when detecting malaria.
                     </p>
                   </div>
                 </div>
