@@ -26,3 +26,22 @@ yarn-error.log*
 .vscode/
 .idea/
 *.swp
+
+# dataset
+/archive (1)/
+sample_dataset/
+
+# Python-specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+myenv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs
+*.log
