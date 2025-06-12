@@ -45,3 +45,4 @@ myenv/
 
 # Logs
 *.log
+.env

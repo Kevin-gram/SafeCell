@@ -132,21 +132,54 @@ export default function MalariaDetection() {
     visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }
   }
 
-  // Sample placeholder images for the detection demo
-  const placeholderImages = [
-    "https://images.pexels.com/photos/4226119/pexels-photo-4226119.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    "https://images.pexels.com/photos/4226264/pexels-photo-4226264.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    "https://images.pexels.com/photos/356040/pexels-photo-356040.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+  // Actual blood cell images for malaria detection
+  const bloodCellSamples = [
+    {
+      url: "/C100P61ThinF_IMG_20150918_144104_cell_128.png",
+      title: "Uninfected Blood Cell",
+      description: "Normal red blood cell - no malaria parasites detected",
+      status: "negative",
+      confidence: 94
+    },
+    {
+      url: "/C100P61ThinF_IMG_20150918_144104_cell_163.png", 
+      title: "Infected Blood Cell",
+      description: "Red blood cell with malaria parasite (Plasmodium)",
+      status: "positive",
+      confidence: 89
+    },
+    {
+      url: "https://images.pexels.com/photos/3825527/pexels-photo-3825527.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 3", 
+      description: "Microscopic blood analysis for comparison",
+      status: "negative",
+      confidence: 92
+    },
+    {
+      url: "https://images.pexels.com/photos/3825539/pexels-photo-3825539.jpeg?auto=compress&cs=tinysrgb&w=800",
+      title: "Blood Smear Sample 4",
+      description: "Laboratory blood examination sample",
+      status: "negative", 
+      confidence: 87
+    }
   ]
 
-  const handleSampleSelect = (img, index) => {
+  const handleSampleSelect = (sample, index) => {
     logInteraction('click', 'sample-image', {
       sampleIndex: index,
-      imageUrl: img
+      imageUrl: sample.url,
+      sampleTitle: sample.title,
+      expectedStatus: sample.status
     })
     
-    setPreviewUrl(img)
-    setSelectedImage({type: 'image/jpeg', size: 1000000, name: `sample-${index + 1}.jpg`}) // mock file object
+    setPreviewUrl(sample.url)
+    setSelectedImage({
+      type: 'image/png', 
+      size: 500000, 
+      name: `blood-cell-sample-${index + 1}.png`
+    }) // mock file object
+    setResult(null)
+    setError(null)
   }
 
   return (
@@ -239,6 +272,18 @@ export default function MalariaDetection() {
               <li>{t('detection.step2')}</li>
               <li>{t('detection.step3')}</li>
             </ol>
+            
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Note:</strong> For best results, ensure blood smear images are:
+              </p>
+              <ul className="text-sm text-blue-700 dark:text-blue-300 mt-2 list-disc pl-4">
+                <li>High resolution and well-focused</li>
+                <li>Properly stained (Giemsa or similar)</li>
+                <li>Free from artifacts or debris</li>
+                <li>Captured under appropriate magnification (1000x recommended)</li>
+              </ul>
+            </div>
           </Card>
         </motion.div>
         
@@ -281,6 +326,11 @@ export default function MalariaDetection() {
                           }
                         </h3>
                       </div>
+                      {result.result === 'detected' && (
+                        <p className="mt-2 text-sm text-error-700 dark:text-error-300">
+                          Malaria parasites detected in blood smear. Immediate medical attention recommended.
+                        </p>
+                      )}
                     </div>
                     
                     <div className="mt-4">
@@ -321,32 +371,68 @@ export default function MalariaDetection() {
               </div>
             </Card>
           ) : (
-            // Sample images
+            // Sample blood cell images
             <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Sample Blood Smear Images</h2>
-              <p className="mb-4 text-gray-600 dark:text-gray-400">
-                Upload a blood smear image or select one of these samples to test the malaria detection system.
+              <h2 className="text-xl font-semibold mb-4">Sample Blood Cell Images</h2>
+              <p className="mb-6 text-gray-600 dark:text-gray-400">
+                Upload your own blood smear image or select one of these sample blood cell images to test the malaria detection system. 
+                These samples include both infected and uninfected cells for demonstration.
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {placeholderImages.map((img, index) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {bloodCellSamples.map((sample, index) => (
                   <div 
                     key={index}
-                    className="aspect-square relative rounded-lg overflow-hidden cursor-pointer group"
-                    onClick={() => handleSampleSelect(img, index)}
+                    className="relative rounded-lg overflow-hidden cursor-pointer group bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-300 border dark:border-gray-700"
+                    onClick={() => handleSampleSelect(sample, index)}
                   >
-                    <img 
-                      src={img}
-                      alt={`Sample ${index + 1}`}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Button variant="primary">Select Sample</Button>
+                    <div className="aspect-square relative">
+                      <img 
+                        src={sample.url}
+                        alt={sample.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <Button variant="primary" size="sm">
+                            Select Sample
+                          </Button>
+                        </div>
+                      </div>
+                      {/* Status indicator */}
+                      <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
+                        sample.status === 'positive' 
+                          ? 'bg-error-100 text-error-800 dark:bg-error-900/50 dark:text-error-200'
+                          : 'bg-success-100 text-success-800 dark:bg-success-900/50 dark:text-success-200'
+                      }`}>
+                        {sample.status === 'positive' ? 'Infected' : 'Uninfected'}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-medium text-sm">{sample.title}</h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        {sample.description}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Expected confidence:</span>
+                        <span className="text-xs font-medium">{sample.confidence}%</span>
                       </div>
                     </div>
                   </div>
                 ))}
+              </div>
+              
+              <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start">
+                  <FiInfo className="text-amber-600 dark:text-amber-400 mt-0.5 mr-2 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-amber-800 dark:text-amber-200">Sample Images Information</h4>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      The first two samples are actual blood cell images: one uninfected and one infected with malaria parasites. 
+                      These demonstrate the visual differences the AI system looks for when detecting malaria.
+                    </p>
+                  </div>
+                </div>
               </div>
             </Card>
           )}

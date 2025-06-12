@@ -17,7 +17,7 @@ import {
   FiInfo,
   FiUser,
   FiSearch,
-  FiBarChart3
+  FiBarChart2
 } from 'react-icons/fi'
 
 export default function ProjectLogs() {
@@ -246,7 +246,7 @@ export default function ProjectLogs() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="p-4">
             <div className="flex items-center">
-              <FiBarChart3 className="text-primary-500 mr-2" />
+              <FiBarChart2 className="text-primary-500 mr-2" />
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Logs</p>
                 <p className="text-2xl font-bold">{stats.total}</p>
