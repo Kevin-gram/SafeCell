@@ -11,7 +11,7 @@ import {
   FiTrendingUp, 
   FiHome,
   FiUsers,
-  FiBarChart3
+  FiBarChart2
 } from 'react-icons/fi'
 import { apiRequest } from '../utils/api'
 import 'leaflet/dist/leaflet.css'
@@ -416,7 +416,7 @@ export default function LocationStats() {
         <Card className="overflow-hidden border-l-4 border-l-medical-500">
           <div className="p-4 border-b dark:border-gray-700 bg-medical-50 dark:bg-medical-900/20">
             <h2 className="text-xl font-semibold text-medical-800 dark:text-medical-200 flex items-center">
-              <FiBarChart3 className="mr-2" />
+              <FiBarChart2 className="mr-2" />
               District Health Surveillance Summary
             </h2>
           </div>
