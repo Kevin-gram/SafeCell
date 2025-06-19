@@ -12,7 +12,6 @@ import Home from './pages/Home'
 import MalariaDetection from './pages/MalariaDetection'
 import Statistics from './pages/Statistics'
 import LocationStats from './pages/LocationStats'
-import ProjectLogs from './pages/ProjectLogs'
 import Settings from './pages/Settings'
 import Feedback from './pages/Feedback'
 import NotFound from './pages/NotFound'
@@ -77,7 +76,6 @@ export default function App() {
         <Route path="detection" element={<MalariaDetection />} />
         <Route path="statistics" element={<Statistics />} />
         <Route path="location-stats" element={<LocationStats />} />
-        <Route path="project-logs" element={<ProjectLogs />} />
         <Route path="settings" element={<Settings />} />
         <Route path="feedback" element={<Feedback />} />
       </Route>

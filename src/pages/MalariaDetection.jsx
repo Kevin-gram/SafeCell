@@ -238,7 +238,7 @@ export default function MalariaDetection() {
         <div className="bg-gradient-to-r from-medical-600 to-primary-600 dark:from-medical-800 dark:to-primary-800 rounded-xl p-6 text-white shadow-lg">
           <h1 className="text-2xl md:text-3xl font-bold flex items-center">
             <FiMapPin className="mr-3" />
-            {t('detection.title')}
+            Detection Page
           </h1>
           <p className="mt-2 text-medical-100 dark:text-medical-200">
             AI-powered malaria detection system for healthcare professionals

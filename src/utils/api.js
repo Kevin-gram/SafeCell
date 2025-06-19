@@ -169,7 +169,7 @@ const updateDistrictStats = (detection) => {
       coordinates: detection.location.coordinates,
       totalCases: 0,
       positiveCases: 0,
-      facilities: new Set(),
+      facilities: [],
       lastUpdated: new Date().toISOString()
     };
   }
@@ -179,14 +179,17 @@ const updateDistrictStats = (detection) => {
   if (detection.result === 'detected') {
     stats.positiveCases += 1;
   }
-  stats.facilities.add(detection.location.facility.name);
-  stats.lastUpdated = new Date().toISOString();
   
-  // Convert Set to Array for JSON storage
-  existingStats[districtKey] = {
-    ...stats,
-    facilities: Array.from(stats.facilities)
-  };
+  // Ensure facilities is always an array and add facility if not already present
+  if (!Array.isArray(stats.facilities)) {
+    stats.facilities = [];
+  }
+  
+  if (!stats.facilities.includes(detection.location.facility.name)) {
+    stats.facilities.push(detection.location.facility.name);
+  }
+  
+  stats.lastUpdated = new Date().toISOString();
   
   localStorage.setItem('district_stats', JSON.stringify(existingStats));
 };

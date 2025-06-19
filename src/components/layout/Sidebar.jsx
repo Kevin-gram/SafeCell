@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useI18n } from '../../contexts/I18nContext'
-import { FiHome, FiSearch, FiBarChart2, FiMessageSquare, FiSettings, FiMapPin, FiFileText } from 'react-icons/fi'
+import { FiHome, FiSearch, FiBarChart2, FiMessageSquare, FiSettings, FiMapPin } from 'react-icons/fi'
 
 export default function Sidebar({ closeSidebar }) {
   const { t } = useI18n()
@@ -26,11 +26,6 @@ export default function Sidebar({ closeSidebar }) {
       to: '/location-stats',
       icon: <FiMapPin size={20} />,
       label: t('nav.locationStats')
-    },
-    {
-      to: '/project-logs',
-      icon: <FiFileText size={20} />,
-      label: 'Project Logs'
     },
     {
       to: '/settings',
