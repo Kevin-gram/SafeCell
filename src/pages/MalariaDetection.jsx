@@ -193,20 +193,13 @@ export default function MalariaDetection() {
     },
     {
       url: "https://images.pexels.com/photos/3825527/pexels-photo-3825527.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 3", 
+      title: "Learn how to do it", 
       description: "Microscopic blood analysis for comparison",
       status: "negative",
       confidence: 92,
       medicalNote: "Normal blood smear examination"
     },
-    {
-      url: "https://images.pexels.com/photos/3825539/pexels-photo-3825539.jpeg?auto=compress&cs=tinysrgb&w=800",
-      title: "Blood Smear Sample 4",
-      description: "Laboratory blood examination sample",
-      status: "negative", 
-      confidence: 87,
-      medicalNote: "Routine diagnostic screening"
-    }
+  
   ]
 
   const handleSampleSelect = (sample, index) => {

@@ -81,7 +81,7 @@ export default function Layout() {
         )}
         
         {/* Main content */}
-        <main className={`flex-1 overflow-auto transition-all duration-300 ${isSidebarOpen && !isMobile ? 'ml-64' : 'ml-0'}`}>
+        <main className={`flex-1 overflow-auto transition-all duration-300 ${isSidebarOpen && !isMobile ? 'ml-16' : 'ml-0'}`}>
           <div className="container-custom py-6 px-4 sm:px-6 lg:px-8 min-h-full">
             <Outlet />
           </div>
