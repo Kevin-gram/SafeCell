@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from keras.models import load_model
 import numpy as np
 import uvicorn
@@ -7,22 +8,71 @@ import os
 import logging
 from PIL import Image
 import io
-from typing import Dict, Any
+from typing import Dict, Any, List
 import traceback
+from pymongo import MongoClient
+from pydantic import BaseModel
+from bson import ObjectId
+import json
+from dotenv import load_dotenv
+load_dotenv()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+
 app = FastAPI()
 
-# Global model variable
-model = None
 
-# Constants
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["*"],
+)
+
+
+model = None
+db = None
+
+
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+MONGODB_URL = os.getenv("MONGODB_URL")
+
+class PredictionResults(BaseModel):
+    result: str
+    confidenceLevel: int
+    rawResult: str
+    rawConfidence: float
+    processingTime: int
+
+class DetectionData(BaseModel):
+    element: str
+    province: str
+    district: str
+    sector: str
+    hospital: str
+    predictionResults: PredictionResults
+    userId: str
+
+def connect_to_mongodb():
+    """Connect to MongoDB"""
+    global db
+    try:
+        
+        client = MongoClient(MONGODB_URL)
+        db = client["safe_cell_db"]  
+      
+        client.admin.command('ping')
+        logger.info("Successfully connected to MongoDB")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB: {str(e)}")
+        return False
 
 def load_malaria_model():
     """Load the malaria detection model"""
@@ -45,7 +95,7 @@ def calculate_target_size(expected_features: int, channels: int = 3) -> tuple:
     pixels_needed = expected_features // channels
     side_length = int(np.sqrt(pixels_needed))
     
-    # Try common sizes
+   
     common_sizes = [(64, 64), (112, 112), (128, 128), (150, 150), (224, 224)]
     
     for size in common_sizes:
@@ -57,21 +107,21 @@ def calculate_target_size(expected_features: int, channels: int = 3) -> tuple:
 def preprocess_image(file_content: bytes) -> np.ndarray:
     """Preprocess image for model prediction"""
     try:
-        # Open and convert image
+      
         img = Image.open(io.BytesIO(file_content))
         if img.mode != 'RGB':
             img = img.convert('RGB')
         
-        # Determine target size and processing method
-        if len(model.input_shape) == 4:  # 2D input (batch, height, width, channels)
+       
+        if len(model.input_shape) == 4: 
             target_size = (model.input_shape[1], model.input_shape[2])
             flatten = False
-        else:  # Flattened input (batch, features)
+        else:  
             expected_features = model.input_shape[1]
             target_size = calculate_target_size(expected_features, 3)
             flatten = True
         
-        # Resize and process
+      
         img = img.resize(target_size, Image.Resampling.LANCZOS)
         img_array = np.array(img, dtype=np.float32)
         img_array = np.expand_dims(img_array, axis=0)
@@ -79,7 +129,7 @@ def preprocess_image(file_content: bytes) -> np.ndarray:
         if flatten:
             img_array = img_array.reshape(1, -1)
         
-        img_array /= 255.0  # Normalize
+        img_array /= 255.0 
         
         logger.info(f"Processed image shape: {img_array.shape}")
         return img_array
@@ -90,9 +140,12 @@ def preprocess_image(file_content: bytes) -> np.ndarray:
 
 @app.on_event("startup")
 async def startup_event():
-    """Load model on startup"""
+    """Load model and connect to database on startup"""
     if not load_malaria_model():
         raise RuntimeError("Could not load malaria detection model")
+    
+    if not connect_to_mongodb():
+        raise RuntimeError("Could not connect to MongoDB")
 
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
@@ -101,46 +154,44 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     try:
-        # Validate file
+    
         file_ext = os.path.splitext(file.filename.lower())[1]
         if file_ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(status_code=400, detail="Invalid file format")
         
-        # Read and validate file content
+        
         file_content = await file.read()
         if len(file_content) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
         if len(file_content) > MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail="File too large")
         
-        # Process image
+      
         img_array = preprocess_image(file_content)
         
-        # Make prediction
+    
         prediction = model.predict(img_array, verbose=0)
         
-        # Interpret results
+        
         logger.info(f"Raw prediction output: {prediction}")
         logger.info(f"Prediction shape: {prediction.shape}")
         
-        if prediction.shape[1] == 1:  # Single output (binary classification)
+        if prediction.shape[1] == 1:  
             confidence_score = float(prediction[0][0])
             
-            # Based on your notebook: class_names = ['Parasitized', 'Uninfected']
-            # Single output typically gives probability of the positive class (class 1)
-            # So confidence_score is probability of "Uninfected" (class 1)
+           
             result = "Uninfected" if confidence_score > 0.5 else "Parasitized"
             confidence = confidence_score if confidence_score > 0.5 else 1 - confidence_score
             
-        else:  # Two outputs [parasitized_prob, uninfected_prob]
-            prob_parasitized = float(prediction[0][0])  # Class 0: Parasitized
-            prob_uninfected = float(prediction[0][1])   # Class 1: Uninfected
+        else:  
+            prob_parasitized = float(prediction[0][0])  
+            prob_uninfected = float(prediction[0][1])   
             
-            # Log both probabilities to understand the model output
+           
             logger.info(f"Parasitized probability (Class 0): {prob_parasitized}")
             logger.info(f"Uninfected probability (Class 1): {prob_uninfected}")
             
-            # Based on your training: class_names = ['Parasitized', 'Uninfected']
+          
             if prob_parasitized > prob_uninfected:
                 result = "Parasitized"
                 confidence = prob_parasitized
@@ -163,6 +214,126 @@ async def predict(file: UploadFile = File(...)):
         logger.error(f"Prediction error: {str(e)}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+@app.post("/detection-data/")
+async def save_detection_data(data: DetectionData):
+    """Save combined detection data to MongoDB"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected")
+    
+    try:
+      
+        data_dict = data.dict()
+        
+      
+        collection = db["detection_results"]
+        result = collection.insert_one(data_dict)
+        
+        logger.info(f"Data saved with ID: {result.inserted_id}")
+        
+        return JSONResponse(
+            status_code=201,
+            content={
+                "message": "Detection data saved successfully",
+                "id": str(result.inserted_id)
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error saving detection data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save data: {str(e)}")
+
+@app.get("/detection-data/")
+async def get_all_detection_data():
+    """Get all detection data from MongoDB"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected")
+    
+    try:
+        collection = db["detection_results"]
+        
+    
+        cursor = collection.find({})
+        data_list = []
+        
+        for document in cursor:
+           
+            document["_id"] = str(document["_id"])
+            data_list.append(document)
+        
+        logger.info(f"Retrieved {len(data_list)} detection records")
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": f"Retrieved {len(data_list)} records",
+                "data": data_list
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving detection data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve data: {str(e)}")
+
+@app.delete("/detection-data/{record_id}")
+async def delete_detection_data(record_id: str):
+    """Delete a specific detection record by ID"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected")
+    
+    try:
+        collection = db["detection_results"]
+        
+        # Convert string ID to ObjectId
+        object_id = ObjectId(record_id)
+        
+        # Delete the document
+        result = collection.delete_one({"_id": object_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Record not found")
+        
+        logger.info(f"Deleted record with ID: {record_id}")
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Record deleted successfully",
+                "deleted_id": record_id
+            }
+        )
+        
+    except ObjectId.InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid record ID format")
+    except Exception as e:
+        logger.error(f"Error deleting detection data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete data: {str(e)}")
+
+@app.delete("/detection-data/")
+async def delete_all_detection_data():
+    """Delete all detection records"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected")
+    
+    try:
+        collection = db["detection_results"]
+        
+        # Delete all documents
+        result = collection.delete_many({})
+        
+        logger.info(f"Deleted {result.deleted_count} records")
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": f"All records deleted successfully",
+                "deleted_count": result.deleted_count
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error deleting all detection data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete all data: {str(e)}")
 
 # Run the app
 if __name__ == "__main__":
