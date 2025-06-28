@@ -3,7 +3,6 @@ uvicorn
 pydantic
 python-dotenv
 pymongo
-bson
 numpy
 pandas
 matplotlib
