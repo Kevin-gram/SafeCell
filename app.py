@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 import json
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -222,20 +223,28 @@ async def save_detection_data(data: DetectionData):
         raise HTTPException(status_code=503, detail="Database not connected")
     
     try:
-      
+        # Convert to dict and add server timestamp
         data_dict = data.dict()
         
-      
+        # Add server-side timestamps
+        current_time = datetime.now(timezone.utc)
+        data_dict["createdAt"] = current_time
+        data_dict["updatedAt"] = current_time
+        
+        # Optional: Add a human-readable timestamp as well
+        data_dict["timestamp"] = current_time.isoformat()
+        
         collection = db["detection_results"]
         result = collection.insert_one(data_dict)
         
-        logger.info(f"Data saved with ID: {result.inserted_id}")
+        logger.info(f"Data saved with ID: {result.inserted_id} at {current_time}")
         
         return JSONResponse(
             status_code=201,
             content={
                 "message": "Detection data saved successfully",
-                "id": str(result.inserted_id)
+                "id": str(result.inserted_id),
+                "timestamp": current_time.isoformat()
             }
         )
         
@@ -252,13 +261,17 @@ async def get_all_detection_data():
     try:
         collection = db["detection_results"]
         
-    
-        cursor = collection.find({})
+        # Sort by creation date (newest first)
+        cursor = collection.find({}).sort("createdAt", -1)
         data_list = []
         
         for document in cursor:
-           
             document["_id"] = str(document["_id"])
+            # Convert datetime objects to ISO strings for JSON serialization
+            if "createdAt" in document:
+                document["createdAt"] = document["createdAt"].isoformat()
+            if "updatedAt" in document:
+                document["updatedAt"] = document["updatedAt"].isoformat()
             data_list.append(document)
         
         logger.info(f"Retrieved {len(data_list)} detection records")
@@ -273,6 +286,69 @@ async def get_all_detection_data():
         
     except Exception as e:
         logger.error(f"Error retrieving detection data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve data: {str(e)}")
+
+@app.get("/detection-data/by-date/")
+async def get_detection_data_by_date(
+    start_date: str = None,
+    end_date: str = None,
+    limit: int = 100
+):
+    """Get detection data filtered by date range"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected")
+    
+    try:
+        collection = db["detection_results"]
+        
+        # Build query filter
+        query_filter = {}
+        
+        if start_date or end_date:
+            date_filter = {}
+            
+            if start_date:
+                try:
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                    date_filter["$gte"] = start_dt
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid start_date format. Use ISO format.")
+            
+            if end_date:
+                try:
+                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    date_filter["$lte"] = end_dt
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid end_date format. Use ISO format.")
+            
+            query_filter["createdAt"] = date_filter
+        
+        # Execute query with sorting and limit
+        cursor = collection.find(query_filter).sort("createdAt", -1).limit(limit)
+        data_list = []
+        
+        for document in cursor:
+            document["_id"] = str(document["_id"])
+            # Convert datetime objects to ISO strings for JSON serialization
+            if "createdAt" in document:
+                document["createdAt"] = document["createdAt"].isoformat()
+            if "updatedAt" in document:
+                document["updatedAt"] = document["updatedAt"].isoformat()
+            data_list.append(document)
+        
+        logger.info(f"Retrieved {len(data_list)} detection records with date filter")
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": f"Retrieved {len(data_list)} records",
+                "data": data_list,
+                "filter_applied": query_filter != {}
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving detection data by date: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve data: {str(e)}")
 
 @app.delete("/detection-data/{record_id}")
@@ -334,6 +410,20 @@ async def delete_all_detection_data():
     except Exception as e:
         logger.error(f"Error deleting all detection data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete all data: {str(e)}")
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "model_loaded": model is not None,
+            "database_connected": db is not None
+        }
+    )
 
 # Run the app
 if __name__ == "__main__":
