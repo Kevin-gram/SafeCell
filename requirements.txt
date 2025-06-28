@@ -11,4 +11,4 @@ seaborn
 scikit-learn
 opencv-python
 Pillow
-tensorflow
+tensorflow==2.16.1
