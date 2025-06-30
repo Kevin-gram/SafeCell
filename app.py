@@ -67,15 +67,21 @@ def connect_to_mongodb():
     """Connect to MongoDB"""
     global db
     try:
-        
+        if not MONGODB_URL:
+            logger.error("MONGODB_URL is not set")
+            return False
+            
+        logger.info(f"Attempting to connect to MongoDB...")
         client = MongoClient(MONGODB_URL)
         db = client["safe_cell_db"]  
       
+        # Test the connection
         client.admin.command('ping')
         logger.info("Successfully connected to MongoDB")
         return True
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {str(e)}")
+        logger.error(f"MongoDB URL: {MONGODB_URL[:20]}..." if MONGODB_URL else "No MongoDB URL")
         return False
 
 def load_malaria_model():
@@ -145,11 +151,27 @@ def preprocess_image(file_content: bytes) -> np.ndarray:
 @app.on_event("startup")
 async def startup_event():
     """Load model and connect to database on startup"""
-    if not load_malaria_model():
-        raise RuntimeError("Could not load malaria detection model")
+    logger.info("Starting up application...")
     
+    # Check if MongoDB URL is set
+    if not MONGODB_URL:
+        logger.error("MONGODB_URL environment variable is not set")
+        raise RuntimeError("MONGODB_URL environment variable is required")
+    
+    # Try to load model (make it optional for now)
+    try:
+        if not load_malaria_model():
+            logger.warning("Could not load malaria detection model - prediction endpoint will be disabled")
+    except Exception as e:
+        logger.error(f"Model loading failed: {str(e)}")
+        logger.warning("Continuing without model - prediction endpoint will be disabled")
+    
+    # Connect to database
     if not connect_to_mongodb():
+        logger.error("Failed to connect to MongoDB")
         raise RuntimeError("Could not connect to MongoDB")
+    
+    logger.info("Application startup completed")
 
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
@@ -259,6 +281,7 @@ async def save_detection_data(data: DetectionData):
 async def get_all_detection_data():
     """Get all detection data from MongoDB"""
     if db is None:
+        logger.error("Database connection is None")
         raise HTTPException(status_code=503, detail="Database not connected")
     
     try:
@@ -269,26 +292,36 @@ async def get_all_detection_data():
         data_list = []
         
         for document in cursor:
+            # Convert ObjectId to string
             document["_id"] = str(document["_id"])
+            
             # Convert datetime objects to ISO strings for JSON serialization
-            if "createdAt" in document:
-                document["createdAt"] = document["createdAt"].isoformat()
-            if "updatedAt" in document:
-                document["UpdatedAt"] = document["updatedAt"].isoformat()
+            if "createdAt" in document and document["createdAt"]:
+                if isinstance(document["createdAt"], datetime):
+                    document["createdAt"] = document["createdAt"].isoformat()
+            
+            if "updatedAt" in document and document["updatedAt"]:
+                if isinstance(document["updatedAt"], datetime):
+                    document["updatedAt"] = document["updatedAt"].isoformat()
+            
+            # Handle any other datetime fields that might exist
+            for key, value in document.items():
+                if isinstance(value, datetime):
+                    document[key] = value.isoformat()
+            
             data_list.append(document)
         
         logger.info(f"Retrieved {len(data_list)} detection records")
         
-        return JSONResponse(
-            status_code=200,
-            content={
-                "message": f"Retrieved {len(data_list)} records",
-                "data": data_list
-            }
-        )
+        return {
+            "message": f"Retrieved {len(data_list)} records",
+            "data": data_list
+        }
         
     except Exception as e:
         logger.error(f"Error retrieving detection data: {str(e)}")
+        logger.error(f"Exception type: {type(e)}")
+        logger.error(f"Database status: {db is not None}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve data: {str(e)}")
 
 @app.get("/detection-data/by-date/")
@@ -413,6 +446,24 @@ async def delete_all_detection_data():
     except Exception as e:
         logger.error(f"Error deleting all detection data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete all data: {str(e)}")
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return JSONResponse(
+        status_code=200,
+        content={
+            "message": "SafeCell Malaria Detection API",
+            "status": "running",
+            "endpoints": {
+                "health": "/health",
+                "predict": "/predict/",
+                "detection_data": "/detection-data/",
+                "detection_data_by_date": "/detection-data/by-date/"
+            }
+        }
+    )
 
 # Health check endpoint
 @app.get("/health")
