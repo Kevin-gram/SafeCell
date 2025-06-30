@@ -25,7 +25,7 @@ opencv-python-headless==4.8.1.78
 Pillow==10.0.1
 
 # Machine Learning
-tensorflow-cpu==2.15.0
+tensorflow==2.16.1
 
 # Additional utilities
 requests==2.31.0
