@@ -27,7 +27,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  
+    allow_origins=[
+        "http://localhost:5173",  # Local development
+        "https://safecell.netlify.app"  # Your deployed Netlify app
+    ],  
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
@@ -271,7 +274,7 @@ async def get_all_detection_data():
             if "createdAt" in document:
                 document["createdAt"] = document["createdAt"].isoformat()
             if "updatedAt" in document:
-                document["updatedAt"] = document["updatedAt"].isoformat()
+                document["UpdatedAt"] = document["updatedAt"].isoformat()
             data_list.append(document)
         
         logger.info(f"Retrieved {len(data_list)} detection records")
