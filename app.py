@@ -30,7 +30,6 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",  # Local development
         "https://safecell.netlify.app"  # Your deployed Netlify app
-        "https://safecell-front-end.vercel.app/"
     ],  
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
